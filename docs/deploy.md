@@ -4,7 +4,7 @@ Any host that runs a container and any host that runs Next.js will do. These ste
 
 ## Database
 
-Create a Postgres 16 database with the pgvector extension available (Neon, Railway, Supabase and the `pgvector/pgvector` image all have it). The first migration runs `CREATE EXTENSION vector`, which needs the database owner's role. Use its connection string with the `postgresql+psycopg://` prefix.
+Create a Postgres 16 database with the pgvector extension available (Neon, Supabase and the `pgvector/pgvector` image have it; check your host). The first migration runs `CREATE EXTENSION vector`, which needs the database owner's role. Use its connection string with the `postgresql+psycopg://` prefix.
 
 ## API
 
