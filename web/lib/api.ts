@@ -1,6 +1,6 @@
 // Client for the backend. Every call carries Clerk's session token, which the API checks
 // against Clerk's keys and the caller's workspace memberships. Shapes mirror workspaces.py
-// and notes.py.
+// and notes.py, and the AI module's documents.py, ask.py and usage.py.
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
   /\/$/,
@@ -41,6 +41,78 @@ export type InvitePreview = {
   accepted: boolean;
 };
 export type Note = { id: string; title: string; body: string; created_at: string; updated_at: string };
+
+export type DocumentInfo = {
+  id: string;
+  title: string;
+  filename: string;
+  kind: string;
+  pages: number;
+  size_bytes: number;
+  chunks: number;
+  created_at: string;
+};
+export type UsageDay = { date: string; calls: number; cost_usd: number };
+export type Usage = {
+  month_start: string;
+  spent_usd: number;
+  budget_usd: number;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  by_model: Record<string, number>;
+  days: UsageDay[];
+};
+
+/** A passage the answer may cite, numbered from 1. */
+export type Source = {
+  n: number;
+  document_id: string;
+  title: string;
+  page: number | null;
+  heading: string | null;
+  text: string;
+};
+export type AnswerPart = { text: string; cites: number[] };
+export type AskDone = {
+  answer: AnswerPart[];
+  grounded: boolean;
+  refused: boolean;
+  truncated: boolean;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+};
+export type Turn = { role: "user" | "assistant"; text: string };
+export type AskEvent =
+  | { event: "sources"; data: Source[] }
+  | { event: "delta"; data: { text: string } }
+  | { event: "done"; data: AskDone }
+  | { event: "error"; data: { message: string } };
+
+/** Reads a server-sent event stream, calling `onEvent` for each complete event. */
+async function readEvents(response: Response, onEvent: (event: AskEvent) => void) {
+  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    let end: number;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const chunk = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      let name = "";
+      let data = "";
+      for (const line of chunk.split("\n")) {
+        if (line.startsWith("event: ")) name = line.slice(7);
+        else if (line.startsWith("data: ")) data += line.slice(6);
+      }
+      if (name && data) onEvent({ event: name, data: JSON.parse(data) } as AskEvent);
+    }
+  }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -117,6 +189,33 @@ export const api = (getToken: GetToken) => {
       json<Note>(call(getToken, `${ws(id)}/notes/${noteId}`, send("PATCH", patch))),
     deleteNote: async (id: string, noteId: string) => {
       await call(getToken, `${ws(id)}/notes/${noteId}`, send("DELETE"));
+    },
+
+    documents: (id: string) => json<DocumentInfo[]>(call(getToken, `${ws(id)}/documents`)),
+    uploadDocument: (id: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return json<DocumentInfo>(
+        call(getToken, `${ws(id)}/documents`, { method: "POST", body: form }),
+      );
+    },
+    deleteDocument: async (id: string, documentId: string) => {
+      await call(getToken, `${ws(id)}/documents/${documentId}`, send("DELETE"));
+    },
+    usage: (id: string) => json<Usage>(call(getToken, `${ws(id)}/usage`)),
+    /** Streams an answer. Resolves when the stream ends; errors before it starts throw. */
+    ask: async (
+      id: string,
+      question: string,
+      history: Turn[],
+      onEvent: (event: AskEvent) => void,
+      signal?: AbortSignal,
+    ) => {
+      const response = await call(getToken, `${ws(id)}/ask`, {
+        ...send("POST", { question, history }),
+        signal,
+      });
+      await readEvents(response, onEvent);
     },
   };
 };

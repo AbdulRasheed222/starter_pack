@@ -396,6 +396,157 @@ a:focus-visible {
   gap: 0.75rem;
 }
 
+/* Ask */
+.thread {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.question {
+  font-weight: 600;
+  margin-block-end: 0.35rem;
+}
+
+.answer {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-block: 0.25rem;
+}
+
+.answer.streaming {
+  color: var(--muted);
+}
+
+.cite {
+  font: inherit;
+  font-size: 0.7rem;
+  vertical-align: super;
+  min-inline-size: 1.3rem;
+  padding: 0 0.3rem;
+  margin-inline-start: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.cite[aria-expanded="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.source {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.9rem;
+  border-inline-start: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 6px;
+}
+
+.source p {
+  white-space: pre-wrap;
+  margin-block-end: 0;
+}
+
+.ask-form {
+  display: grid;
+  gap: 0.5rem;
+  position: sticky;
+  inset-block-end: 0;
+  padding-block: 0.75rem;
+  background: var(--bg);
+}
+
+/* Usage */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.stat {
+  display: grid;
+  gap: 0.2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+
+.stat strong {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-block-start: 0.4rem;
+}
+
+.meter span {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.meter span[data-full="true"] {
+  background: var(--danger);
+}
+
+.bars {
+  inline-size: 100%;
+  block-size: auto;
+  display: block;
+}
+
+.bars rect {
+  fill: var(--accent);
+}
+
+.bars rect.hit {
+  fill: transparent;
+}
+
+.bars g:hover rect.hit {
+  fill: var(--notice);
+}
+
+.bars .axis {
+  stroke: var(--line);
+}
+
+/* Right to left: the days run from the right, like the text. */
+[dir="rtl"] .bars {
+  transform: scaleX(-1);
+}
+
+.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+table {
+  border-collapse: collapse;
+  margin-block-start: 0.5rem;
+}
+
+td {
+  padding-block: 0.2rem;
+  padding-inline: 0 0.75rem;
+}
+
 /* Phones: the side menu becomes a bar across the top. */
 @media (max-width: 720px) {
   .shell {

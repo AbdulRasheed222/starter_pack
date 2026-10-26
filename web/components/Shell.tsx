@@ -57,8 +57,11 @@ export default function Shell({
 
   const base = `/app/${workspace.id}`;
   const links = [
+    { href: `${base}/ask`, label: t("nav.ask") },
+    { href: `${base}/documents`, label: t("nav.documents") },
     { href: base, label: t("nav.notes") },
     { href: `${base}/members`, label: t("nav.members") },
+    { href: `${base}/usage`, label: t("nav.usage") },
     { href: `${base}/settings`, label: t("nav.settings") },
   ];
 
