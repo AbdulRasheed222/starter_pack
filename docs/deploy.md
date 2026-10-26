@@ -4,7 +4,7 @@ Any host that runs a container and any host that runs Next.js will do. These ste
 
 ## Database
 
-Create a Postgres 16 database (Neon, Railway, Supabase or your own). Use its connection string with the `postgresql+psycopg://` prefix.
+Create a Postgres 16 database with the pgvector extension available (Neon, Railway, Supabase and the `pgvector/pgvector` image all have it). The first migration runs `CREATE EXTENSION vector`, which needs the database owner's role. Use its connection string with the `postgresql+psycopg://` prefix.
 
 ## API
 
@@ -17,8 +17,12 @@ Build from the repository root with the `Dockerfile`. Migrations run on every st
 | `CLERK_ISSUER` | your Clerk production instance's Frontend API URL |
 | `CORS_ORIGINS` | the web app's URL, e.g. `https://app.example.com` |
 | `SITE_URL` | the same URL, used in invite links |
+| `ANTHROPIC_API_KEY` | from the Claude Console, or see `ai.md` for other providers |
+| `AI_MONTHLY_BUDGET_USD` | the spending cap per workspace per month |
 
 Check it with `curl https://your-api/healthz`.
+
+The embedding model (about 1 GB) downloads to `/app/models` on the first upload or question. Mount a volume there, or every restart downloads it again. Give the API more than 1 GB of memory, since the model is loaded into it.
 
 ## Web
 
