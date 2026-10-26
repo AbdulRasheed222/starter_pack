@@ -169,7 +169,7 @@ jobs:
       - name: Set up the project
         run: python3 setup_project.py --yes --name Acme ${{ matrix.without }}
       - name: No module markers are left
-        run: "! grep -rEn '\\[/?module:|\\[only:' backend web/app web/components web/lib .github docs README.md CLAUDE.md Dockerfile"
+        run: "! grep -rEn --exclude-dir=.venv --exclude-dir=node_modules '\\[/?module:|\\[only:' backend web/app web/components web/lib .github docs README.md CLAUDE.md Dockerfile"
       - name: Backend
         working-directory: backend
         run: |
