@@ -52,11 +52,17 @@ def seed(client, user: str, name: str) -> dict[str, str]:
         json={"email": f"guest-{name.lower()}@example.com"},
         headers=headers,
     ).json()
+    document = client.post(
+        f"/workspaces/{workspace_id}/documents",
+        files={"file": (f"{name}.md", f"# {name}\n\n{name} keeps its secrets.".encode())},
+        headers=headers,
+    ).json()
     me = client.get("/me", headers=headers).json()
     return {
         "workspace_id": workspace_id,
         "note_id": note["id"],
         "invite_id": invite["id"],
+        "document_id": document["id"],
         "user_id": me["id"],
     }
 
@@ -102,14 +108,21 @@ def example(schema: dict, components: dict):
     return "x" * max(schema.get("minLength", 1), 1)
 
 
+def request_content(method: str, path: str) -> dict:
+    spec = app.openapi()
+    return spec["paths"][path][method.lower()].get("requestBody", {}).get("content", {})
+
+
 def body_for(method: str, path: str):
     spec = app.openapi()
-    content = spec["paths"][path][method.lower()].get("requestBody", {}).get("content", {})
-    schema = content.get("application/json", {}).get("schema")
+    schema = request_content(method, path).get("application/json", {}).get("schema")
     return example(schema, spec["components"]["schemas"]) if schema else None
 
 
 def call(client, method: str, template: str, path: str, user: str):
+    if "multipart/form-data" in request_content(method, template):
+        files = {"file": ("attack.md", b"# Attack\n\nPlanted text.")}
+        return client.request(method, path, files=files, headers=as_user(user))
     body = body_for(method, template)
     return client.request(method, path, json=body, headers=as_user(user))
 
@@ -159,3 +172,7 @@ def test_alphas_data_is_untouched(client, two_workspaces):
     assert (workspace["name"], workspace["members"]) == ("Alpha", 1)
     notes = client.get(f"/workspaces/{alpha['workspace_id']}/notes", headers=headers).json()
     assert [n["title"] for n in notes] == ["Alpha secret"]
+    documents = client.get(f"/workspaces/{alpha['workspace_id']}/documents", headers=headers).json()
+    assert [d["filename"] for d in documents] == ["Alpha.md"]
+    usage = client.get(f"/workspaces/{alpha['workspace_id']}/usage", headers=headers).json()
+    assert usage["calls"] == 0

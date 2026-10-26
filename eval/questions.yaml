@@ -1,0 +1,70 @@
+# Questions for scripts/eval_retrieval.py. A question counts as found when one of the top k
+# passages contains its evidence phrase, copied exactly from eval/documents/ (a test checks).
+# The Turkish and Arabic questions are about English documents, to check cross-language search.
+
+- question: What time does the front desk open?
+  evidence: The front desk is staffed from 08:30 to 18:00
+- question: Are you open on Sunday?
+  evidence: The building is closed on Sundays
+- question: Can I bring a friend with me?
+  evidence: Members may bring up to two guests per day
+- question: Where can I take a phone call?
+  evidence: use the phone booths on the second floor
+- question: When is the fridge cleaned out?
+  evidence: The fridge is emptied every Friday at 17:00
+- question: Can I bring my dog?
+  evidence: Dogs are welcome on the first floor only
+- question: I lost my access card, what do I do?
+  evidence: A lost key card is blocked as soon as you report it
+- question: How much is a single day?
+  evidence: A day pass costs 350 lira
+- question: Do unused flex days roll over?
+  evidence: Unused days do not carry over to the next month
+- question: Is there a student discount?
+  evidence: Students get 30 percent off the flex membership
+- question: How do I cancel my membership?
+  evidence: at least 14 days before your next billing date
+- question: Which meeting room has a projector?
+  evidence: Albatross seats sixteen and has a projector
+- question: What is the wifi password?
+  evidence: the password is printed on the back of your key card
+- question: How much does colour printing cost?
+  evidence: a colour page costs 6 lira
+- question: Can I get packages delivered here?
+  evidence: Packages are kept at the front desk for up to seven days
+- question: Is there parking?
+  evidence: There is no parking at the building
+- question: How much is a private office?
+  evidence: Private offices for two to six people start at 18,000 lira per month
+
+- question: Cumartesi günleri açık mısınız?
+  language: tr
+  evidence: On Saturdays the building opens from 10:00 to 16:00
+- question: Günlük giriş ücreti ne kadar?
+  language: tr
+  evidence: A day pass costs 350 lira
+- question: Toplantı odası nasıl rezerve edilir?
+  language: tr
+  evidence: Book them in the member app
+- question: Yıllık ödersem indirim var mı?
+  language: tr
+  evidence: Paying for a year in advance gives two months free
+- question: Dolap kiralayabilir miyim?
+  language: tr
+  evidence: Lockers cost 250 lira per month
+
+- question: هل يمكنني إحضار كلبي؟
+  language: ar
+  evidence: Dogs are welcome on the first floor only
+- question: كم سعر المكتب الثابت شهريا؟
+  language: ar
+  evidence: A resident desk costs 6,500 lira per month
+- question: ما هي كلمة مرور الواي فاي؟
+  language: ar
+  evidence: the password is printed on the back of your key card
+- question: كم صفحة طباعة مجانية أحصل عليها؟
+  language: ar
+  evidence: Each member gets 100 free black-and-white pages per month
+- question: هل القهوة مجانية؟
+  language: ar
+  evidence: Coffee and tea are free for members

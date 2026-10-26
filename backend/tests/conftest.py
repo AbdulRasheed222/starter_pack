@@ -12,11 +12,16 @@ os.environ.update(
         "CLERK_ISSUER": "https://clerk.example.test",
         "CORS_ORIGINS": "http://localhost:3000",
         "SITE_URL": "http://localhost:3000",
+        # No network in tests: canned answers and word-matching embeddings.
+        "AI_PROVIDER": "fake",
+        "EMBEDDER": "hashing",
+        "AI_MONTHLY_BUDGET_USD": "5",
     }
 )
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 from app import auth, models  # noqa: E402, F401
 from app.api import app  # noqa: E402
@@ -26,6 +31,8 @@ from tests.support import KEY  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def fresh_database():
+    with engine.begin() as connection:
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     yield
