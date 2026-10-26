@@ -98,6 +98,7 @@ def test_upload_list_and_delete(client):
     assert created.status_code == 201, created.text
     document = created.json()
     assert (document["title"], document["kind"], document["chunks"]) == ("hours", "markdown", 2)
+    assert (document["status"], document["error"]) == ("ready", None)
 
     listed = client.get(f"/workspaces/{workspace_id}/documents", headers=as_user()).json()
     assert [d["id"] for d in listed] == [document["id"]]
@@ -110,8 +111,11 @@ def test_upload_list_and_delete(client):
 def test_upload_rejects_bad_files(client, monkeypatch):
     workspace_id = create_workspace(client)
     assert upload(client, workspace_id, name="virus.exe").status_code == 422
-    assert upload(client, workspace_id, name="empty.txt", data=b"   ").status_code == 422
-    assert upload(client, workspace_id, name="broken.pdf", data=b"not a pdf").status_code == 422
+    # Files that only fail once opened are accepted, then marked failed by the job.
+    for name, data in (("empty.txt", b"   "), ("broken.pdf", b"not a pdf")):
+        document = upload(client, workspace_id, name=name, data=data).json()
+        assert document["status"] == "failed" and document["error"], name
+        assert document["chunks"] == 0
     monkeypatch.setattr(get_settings(), "max_upload_mb", 0)
     assert upload(client, workspace_id).status_code == 413
 

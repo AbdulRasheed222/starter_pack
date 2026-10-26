@@ -16,6 +16,11 @@ os.environ.update(
         "AI_PROVIDER": "fake",
         "EMBEDDER": "hashing",
         "AI_MONTHLY_BUDGET_USD": "5",
+        # Jobs run inside enqueue(), so their results are there when a request returns.
+        "JOBS_INLINE": "true",
+        "JOBS_WORKER_IN_API": "false",
+        "EMAIL_BACKEND": "console",
+        "ADMIN_USER_IDS": "user_operator",
     }
 )
 

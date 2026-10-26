@@ -1,7 +1,8 @@
 """Documents the AI answers from: upload, list, delete, and search.
 
-Uploads are parsed, split into passages and embedded inside the request. That is fine for
-files of a few dozen pages; move it to a background job when your users upload books.
+An upload is stored and answered at once; a background job (jobs.py) then parses it, splits
+it into passages and embeds them. The document's status goes from processing to ready, or to
+failed with a reason the user can read.
 
 Search is an exact nearest-neighbour scan of one workspace's chunks, filtered on workspace_id
 in SQL. It stays fast to roughly 100,000 chunks per workspace. Past that, add an HNSW index
@@ -20,10 +21,11 @@ from sqlalchemy.orm import Session
 
 from app.ai.chunking import chunk_sections
 from app.ai.embeddings import get_embedder
-from app.ai.parsing import ParseError, parse_file
+from app.ai.parsing import ParseError, kind_for_filename, parse_file
 from app.auth import CurrentUser
 from app.config import Settings, get_settings
 from app.db import get_session
+from app.jobs import enqueue, handler
 from app.models import Chunk, Document
 from app.tenancy import Admin, Member, owned
 
@@ -37,6 +39,8 @@ class DocumentOut(BaseModel):
     title: str
     filename: str
     kind: str
+    status: str
+    error: str | None
     pages: int
     size_bytes: int
     chunks: int
@@ -49,6 +53,8 @@ def _out(document: Document, chunks: int) -> DocumentOut:
         title=document.title,
         filename=document.filename,
         kind=document.kind,
+        status=document.status,
+        error=document.error,
         pages=document.pages,
         size_bytes=document.size_bytes,
         chunks=chunks,
@@ -86,28 +92,51 @@ def upload_document(
         )
     filename = (file.filename or "upload.txt")[-300:]
     try:
-        parsed = parse_file(filename, data)
+        kind = kind_for_filename(filename)
     except ParseError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    passages = chunk_sections(parsed.sections, settings.chunk_words, settings.chunk_overlap_words)
-    if not passages:
-        raise HTTPException(status_code=422, detail="No text was found in this file.")
 
-    vectors = get_embedder(settings).embed_documents([p.embedding_text() for p in passages])
     document = Document(
         workspace_id=membership.workspace_id,
-        title=parsed.title[:300],
+        title=filename.rsplit(".", 1)[0][:300],
         filename=filename,
-        kind=parsed.kind,
-        pages=parsed.pages,
+        kind=kind,
         size_bytes=len(data),
+        content=data,
         created_by=user.id,
     )
     session.add(document)
     session.flush()
+    enqueue(session, "ingest_document", {"document_id": str(document.id)}, max_attempts=3)
+    session.commit()
+    session.refresh(document)
+    chunks = session.scalar(select(func.count(Chunk.id)).where(Chunk.document_id == document.id))
+    return _out(document, chunks or 0)
+
+
+@handler("ingest_document")
+def ingest_document(session: Session, payload: dict) -> None:
+    """Parse, split and embed one upload. Safe to run twice: it replaces earlier passages."""
+    settings = get_settings()
+    document = session.get(Document, uuid.UUID(payload["document_id"]))
+    if document is None or document.content is None:
+        return  # deleted while queued
+    try:
+        parsed = parse_file(document.filename, document.content)
+        passages = chunk_sections(
+            parsed.sections, settings.chunk_words, settings.chunk_overlap_words
+        )
+        if not passages:
+            raise ParseError("No text was found in this file.")
+    except ParseError as exc:
+        document.status, document.error = "failed", str(exc)[:500]
+        return
+
+    vectors = get_embedder(settings).embed_documents([p.embedding_text() for p in passages])
+    session.query(Chunk).filter(Chunk.document_id == document.id).delete()
     session.add_all(
         Chunk(
-            workspace_id=membership.workspace_id,
+            workspace_id=document.workspace_id,
             document_id=document.id,
             position=n,
             page=p.page,
@@ -117,8 +146,9 @@ def upload_document(
         )
         for n, (p, vector) in enumerate(zip(passages, vectors, strict=True))
     )
-    session.commit()
-    return _out(document, len(passages))
+    document.title = parsed.title[:300]
+    document.pages = parsed.pages
+    document.status, document.error = "ready", None
 
 
 @router.delete("/{document_id}", status_code=204)

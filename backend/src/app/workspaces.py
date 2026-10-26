@@ -16,8 +16,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import CurrentUser
+from app.billing import PAID_STATUSES
 from app.config import get_settings
 from app.db import get_session
+from app.mail import send_email
 from app.models import Invite, Membership, Role, User, Workspace
 from app.tenancy import Admin, Member, Owner, owned
 
@@ -131,6 +133,10 @@ def rename_workspace(body: WorkspaceIn, membership: Admin, session: SessionDep) 
 def delete_workspace(membership: Owner, session: SessionDep) -> Response:
     """Deletes the workspace and, through the foreign keys, everything in it."""
     workspace = session.get(Workspace, membership.workspace_id)
+    assert workspace is not None
+    if workspace.subscription_status in PAID_STATUSES:
+        # Deleting it here would leave Stripe charging for a workspace that no longer exists.
+        raise HTTPException(status_code=409, detail="Cancel the subscription first.")
     session.delete(workspace)
     session.commit()
     return Response(status_code=204)
@@ -317,8 +323,20 @@ def create_invite(body: InviteIn, membership: Admin, user: CurrentUser, session:
         expires_at=_now() + timedelta(days=settings.invite_days),
     )
     session.add(invite)
-    session.commit()
     link = f"{settings.site_url.rstrip('/')}/invite/{token}"
+    workspace = session.get(Workspace, membership.workspace_id)
+    assert workspace is not None
+    send_email(
+        session,
+        to=email,
+        subject=f"You're invited to {workspace.name}",
+        text=(
+            f"{user.email or 'A teammate'} invited you to join {workspace.name}.\n\n"
+            f"Open this link to accept: {link}\n\n"
+            f"It works once, only for {email}, and expires in {settings.invite_days} days."
+        ),
+    )
+    session.commit()
     return CreatedInvite(**_invite_out(invite).model_dump(), link=link)
 
 

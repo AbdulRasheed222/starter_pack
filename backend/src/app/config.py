@@ -65,6 +65,35 @@ class Settings(BaseSettings):
     max_upload_mb: int = 10
     max_documents_per_workspace: int = 200
 
+    # --- Background jobs (jobs.py) ------------------------------------------------------------
+    # Run a worker thread inside the API process. Turn off when you run app.worker separately.
+    jobs_worker_in_api: bool = True
+    # Run jobs immediately inside enqueue(), without a queue. For tests.
+    jobs_inline: bool = False
+
+    # --- Email (mail.py) -------------------------------------------------------------------
+    # "console" logs emails instead of sending them; "resend" sends through resend.com.
+    email_backend: str = "console"
+    resend_api_key: str | None = None
+    # A sender on a domain verified in Resend, e.g. "Acme <hello@acme.com>".
+    email_from: str = "Starter <onboarding@resend.dev>"
+
+    # --- Operators -------------------------------------------------------------------------
+    # Clerk user ids (user_...) allowed into /admin, comma separated.
+    admin_user_ids: str = ""
+
+    # --- Billing (Stripe) ---------------------------------------------------------------------
+    # Unset means billing is off: every workspace stays on the free plan.
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    # The Stripe price for the Pro plan (price_...), and the AI budget each plan gets.
+    stripe_price_pro: str | None = None
+    pro_ai_monthly_budget_usd: float = 50.0
+
+    @property
+    def admin_user_id_set(self) -> set[str]:
+        return {u.strip() for u in self.admin_user_ids.split(",") if u.strip()}
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

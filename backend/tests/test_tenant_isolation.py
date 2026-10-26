@@ -24,6 +24,9 @@ UNSCOPED = {
     ("POST", "/workspaces"): "creates a new workspace owned by the caller",
     ("POST", "/invites/preview"): "needs the secret invite token",
     ("POST", "/invites/accept"): "needs the secret invite token, and the invited email",
+    ("POST", "/billing/webhook"): "called by Stripe; refused without Stripe's signature",
+    ("GET", "/admin/workspaces"): "operators only (ADMIN_USER_IDS); 404 for everyone else",
+    ("PATCH", "/admin/workspaces/{target_id}"): "operators only (ADMIN_USER_IDS); 404 for others",
 }
 
 PARAM = re.compile(r"{(\w+)}")

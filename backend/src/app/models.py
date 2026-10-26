@@ -7,11 +7,13 @@ from datetime import UTC, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    JSON,
     DateTime,
     Enum,
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -63,6 +65,11 @@ class Workspace(Base):
     # Monthly AI spending cap in USD. None uses AI_MONTHLY_BUDGET_USD. Set by you (or by
     # billing), never by the customer.
     ai_monthly_budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Billing, kept in step with Stripe by billing.py's webhook. "free" until a subscription.
+    plan: Mapped[str] = mapped_column(String(32), default="free", server_default="free")
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    subscription_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -138,8 +145,14 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(300))
     filename: Mapped[str] = mapped_column(String(300))
     kind: Mapped[str] = mapped_column(String(16))
-    pages: Mapped[int] = mapped_column(Integer)
+    pages: Mapped[int] = mapped_column(Integer, default=0)
     size_bytes: Mapped[int] = mapped_column(Integer)
+    # processing -> ready, or failed with a reason that is safe to show.
+    status: Mapped[str] = mapped_column(String(16), default="processing", server_default="ready")
+    error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # The uploaded file, kept so it can be processed in the background and re-indexed later
+    # with a new model. Loaded only when asked for.
+    content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -187,3 +200,32 @@ class UsageEvent(Base):
     cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class StripeEvent(Base):
+    """Stripe webhook events already handled, so a retried delivery is not applied twice."""
+
+    __tablename__ = "stripe_events"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    type: Mapped[str] = mapped_column(String(100))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Job(Base):
+    """A unit of background work. See jobs.py."""
+
+    __tablename__ = "jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    # queued -> running -> done, or back to queued for a retry, or failed for good.
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=5)
+    run_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
