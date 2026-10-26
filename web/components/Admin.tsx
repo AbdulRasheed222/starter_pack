@@ -4,7 +4,9 @@ import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+// [module:billing]
 import { planName } from "@/components/Billing";
+// [/module:billing]
 import { LanguageSwitcher, useI18n } from "@/components/I18n";
 import { useApi, useFormatDate, useLoad } from "@/components/hooks";
 import type { AdminWorkspace } from "@/lib/api";
@@ -16,6 +18,7 @@ export default function Admin() {
   const api = useApi();
   const { data, error, setData } = useLoad(() => api.adminWorkspaces(), [api]);
   const formatDate = useFormatDate();
+  // [module:ai]
   const money = useMemo(
     () => new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }),
     [locale],
@@ -24,6 +27,7 @@ export default function Admin() {
   function replace(row: AdminWorkspace) {
     setData((rows) => rows?.map((r) => (r.id === row.id ? row : r)) ?? null);
   }
+  // [/module:ai]
 
   return (
     <div className="landing">
@@ -46,11 +50,15 @@ export default function Admin() {
               <thead>
                 <tr>
                   <th>{t("admin.workspace")}</th>
-                  <th>{t("admin.plan")}</th>
                   <th>{t("admin.members")}</th>
+                  {/* [module:billing] */}
+                  <th>{t("admin.plan")}</th>
+                  {/* [/module:billing] */}
+                  {/* [module:ai] */}
                   <th>{t("admin.documents")}</th>
                   <th>{t("admin.spent")}</th>
                   <th>{t("admin.budget")}</th>
+                  {/* [/module:ai] */}
                 </tr>
               </thead>
               <tbody>
@@ -60,18 +68,22 @@ export default function Admin() {
                       <strong>{row.name}</strong>
                       <div className="muted small">{formatDate(row.created_at)}</div>
                     </td>
+                    <td>{row.members}</td>
+                    {/* [module:billing] */}
                     <td>
                       {planName(t, row.plan)}
                       {row.subscription_status && (
                         <div className="muted small">{row.subscription_status}</div>
                       )}
                     </td>
-                    <td>{row.members}</td>
+                    {/* [/module:billing] */}
+                    {/* [module:ai] */}
                     <td>{row.documents}</td>
                     <td>{money.format(row.spent_usd)}</td>
                     <td>
                       <BudgetEditor row={row} onSaved={replace} />
                     </td>
+                    {/* [/module:ai] */}
                   </tr>
                 ))}
               </tbody>
@@ -83,6 +95,7 @@ export default function Admin() {
   );
 }
 
+// [module:ai]
 function BudgetEditor({
   row,
   onSaved,
@@ -134,3 +147,4 @@ function BudgetEditor({
     </form>
   );
 }
+// [/module:ai]

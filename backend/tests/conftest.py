@@ -12,10 +12,12 @@ os.environ.update(
         "CLERK_ISSUER": "https://clerk.example.test",
         "CORS_ORIGINS": "http://localhost:3000",
         "SITE_URL": "http://localhost:3000",
+        # [module:ai]
         # No network in tests: canned answers and word-matching embeddings.
         "AI_PROVIDER": "fake",
         "EMBEDDER": "hashing",
         "AI_MONTHLY_BUDGET_USD": "5",
+        # [/module:ai]
         # Jobs run inside enqueue(), so their results are there when a request returns.
         "JOBS_INLINE": "true",
         "JOBS_WORKER_IN_API": "false",
@@ -36,8 +38,10 @@ from tests.support import KEY  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def fresh_database():
+    # [module:ai]
     with engine.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    # [/module:ai]
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     yield

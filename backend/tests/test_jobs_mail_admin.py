@@ -151,15 +151,22 @@ def test_admin_is_invisible_to_everyone_else(client):
     assert client.get("/admin/workspaces").status_code == 401
 
 
-def test_operators_see_workspaces_and_set_budgets(client):
-    workspace_id = create_workspace(client, name="Acme")
+def test_operators_see_every_workspace(client):
+    create_workspace(client, name="Acme")
+    create_workspace(client, "user_bob", name="Beta")
     operator = as_user("user_operator")
     assert client.get("/me", headers=operator).json()["is_operator"] is True
     assert client.get("/me", headers=as_user()).json()["is_operator"] is False
     rows = client.get("/admin/workspaces", headers=operator).json()
-    assert [(r["name"], r["members"], r["plan"], r["budget_usd"]) for r in rows] == [
-        ("Acme", 1, "free", 5)
-    ]
+    assert sorted((r["name"], r["members"]) for r in rows) == [("Acme", 1), ("Beta", 1)]
+
+
+# [module:ai]
+def test_operators_see_workspaces_and_set_budgets(client):
+    workspace_id = create_workspace(client, name="Acme")
+    operator = as_user("user_operator")
+    rows = client.get("/admin/workspaces", headers=operator).json()
+    assert [(r["name"], r["budget_usd"], r["spent_usd"]) for r in rows] == [("Acme", 5, 0)]
 
     path = f"/admin/workspaces/{workspace_id}"
     row = client.patch(path, json={"ai_monthly_budget_usd": 12.5}, headers=operator).json()
@@ -178,3 +185,6 @@ def test_operators_see_workspaces_and_set_budgets(client):
     assert client.patch(
         path, json={"ai_monthly_budget_usd": 999}, headers=as_user()
     ).status_code == (404)
+
+
+# [/module:ai]

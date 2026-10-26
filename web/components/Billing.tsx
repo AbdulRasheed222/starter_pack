@@ -24,10 +24,12 @@ export default function Billing() {
   const { data, error } = useLoad(() => api.billing(workspace.id), [api, workspace.id]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // [module:ai]
   const money = useMemo(
     () => new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }),
     [locale],
   );
+  // [/module:ai]
 
   async function go(load: () => Promise<{ url: string }>) {
     setBusy(true);
@@ -65,9 +67,11 @@ export default function Billing() {
                 {planName(t, plan.key)}{" "}
                 {current && <span className="badge">{t("billing.current")}</span>}
               </h2>
+              {/* [module:ai] */}
               <p className="muted">
                 {t("billing.budget", { budget: money.format(plan.ai_monthly_budget_usd) })}
               </p>
+              {/* [/module:ai] */}
               {data.can_manage && !current && plan.key !== "free" && !subscribed && (
                 <button
                   className="button primary"

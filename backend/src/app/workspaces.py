@@ -16,7 +16,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import CurrentUser
+
+# [module:billing]
 from app.billing import PAID_STATUSES
+
+# [/module:billing]
 from app.config import get_settings
 from app.db import get_session
 from app.mail import send_email
@@ -137,9 +141,11 @@ def delete_workspace(membership: Owner, session: SessionDep) -> Response:
     """Deletes the workspace and, through the foreign keys, everything in it."""
     workspace = session.get(Workspace, membership.workspace_id)
     assert workspace is not None
+    # [module:billing]
     if workspace.subscription_status in PAID_STATUSES:
         # Deleting it here would leave Stripe charging for a workspace that no longer exists.
         raise HTTPException(status_code=409, detail="Cancel the subscription first.")
+    # [/module:billing]
     session.delete(workspace)
     session.commit()
     return Response(status_code=204)

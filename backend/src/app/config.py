@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # alone enough to join, so anyone it is forwarded to can use it.
     invite_requires_email_match: bool = True
 
+    # [module:ai]
     # --- AI -------------------------------------------------------------------------------
     # "anthropic" (Claude), "openai" (any OpenAI-compatible server: OpenAI, Ollama, vLLM), or
     # "fake" (canned answers, no network; tests use it).
@@ -64,6 +65,7 @@ class Settings(BaseSettings):
     ai_passages: int = 6
     max_upload_mb: int = 10
     max_documents_per_workspace: int = 200
+    # [/module:ai]
 
     # --- Background jobs (jobs.py) ------------------------------------------------------------
     # Run a worker thread inside the API process. Turn off when you run app.worker separately.
@@ -82,13 +84,18 @@ class Settings(BaseSettings):
     # Clerk user ids (user_...) allowed into /admin, comma separated.
     admin_user_ids: str = ""
 
+    # [module:billing]
     # --- Billing (Stripe) ---------------------------------------------------------------------
     # Unset means billing is off: every workspace stays on the free plan.
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
-    # The Stripe price for the Pro plan (price_...), and the AI budget each plan gets.
+    # The Stripe price for the Pro plan (price_...).
     stripe_price_pro: str | None = None
+    # [module:ai]
+    # The Pro plan's AI budget; the free plan's is AI_MONTHLY_BUDGET_USD.
     pro_ai_monthly_budget_usd: float = 50.0
+    # [/module:ai]
+    # [/module:billing]
 
     @property
     def admin_user_id_set(self) -> set[str]:

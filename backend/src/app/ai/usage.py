@@ -16,7 +16,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.pricing import Usage, cost_usd
+
+# [module:billing]
 from app.billing import plan_budget
+
+# [/module:billing]
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.models import UsageEvent, Workspace
@@ -35,7 +39,11 @@ def month_start(now: datetime | None = None) -> datetime:
 def budget_usd(workspace: Workspace, settings: Settings) -> float:
     if workspace.ai_monthly_budget_usd is not None:
         return workspace.ai_monthly_budget_usd
-    return plan_budget(workspace, settings)
+    budget = settings.ai_monthly_budget_usd
+    # [module:billing]
+    budget = plan_budget(workspace, settings)
+    # [/module:billing]
+    return budget
 
 
 def spent_this_month(session: Session, workspace_id: uuid.UUID) -> float:

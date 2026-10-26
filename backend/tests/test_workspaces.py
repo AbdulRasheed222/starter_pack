@@ -85,11 +85,17 @@ def test_members_can_leave_but_not_remove_others(client):
 def test_deleting_a_workspace_deletes_its_data(client, session):
     from sqlalchemy import func, select
 
-    from app.models import Membership, Note
+    from app.models import Membership
 
     workspace_id = create_workspace(client)
     join(client, workspace_id, "user_bob")
+    # [module:notes]
+    from app.models import Note
+
     client.post(f"/workspaces/{workspace_id}/notes", json={"title": "Hi"}, headers=as_user())
+    # [/module:notes]
     client.delete(f"/workspaces/{workspace_id}", headers=as_user())
+    # [module:notes]
     assert session.scalar(select(func.count()).select_from(Note)) == 0
+    # [/module:notes]
     assert session.scalar(select(func.count()).select_from(Membership)) == 0

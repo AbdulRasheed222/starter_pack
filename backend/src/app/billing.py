@@ -9,7 +9,7 @@ To add a plan: add it to `plans()`, create its price in Stripe, and put the pric
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -36,16 +36,21 @@ PAID_STATUSES = {"active", "trialing", "past_due"}
 @dataclass(frozen=True)
 class Plan:
     key: str
-    ai_monthly_budget_usd: float
     paid: bool
     price_id: str | None  # the Stripe price; a paid plan without one can't be bought yet
+    # [module:ai]
+    ai_monthly_budget_usd: float = 0.0
+    # [/module:ai]
 
 
 def plans(settings: Settings) -> dict[str, Plan]:
-    return {
-        "free": Plan("free", settings.ai_monthly_budget_usd, False, None),
-        "pro": Plan("pro", settings.pro_ai_monthly_budget_usd, True, settings.stripe_price_pro),
-    }
+    free = Plan("free", paid=False, price_id=None)
+    pro = Plan("pro", paid=True, price_id=settings.stripe_price_pro)
+    # [module:ai]
+    free = replace(free, ai_monthly_budget_usd=settings.ai_monthly_budget_usd)
+    pro = replace(pro, ai_monthly_budget_usd=settings.pro_ai_monthly_budget_usd)
+    # [/module:ai]
+    return {"free": free, "pro": pro}
 
 
 def plan_for_price(settings: Settings, price_id: str | None) -> str:
@@ -55,9 +60,13 @@ def plan_for_price(settings: Settings, price_id: str | None) -> str:
     return "free"
 
 
+# [module:ai]
 def plan_budget(workspace: Workspace, settings: Settings) -> float:
     plan = plans(settings).get(workspace.plan) or plans(settings)["free"]
     return plan.ai_monthly_budget_usd
+
+
+# [/module:ai]
 
 
 def stripe_client():
@@ -75,8 +84,10 @@ StripeDep = Annotated[Any, Depends(stripe_client)]
 
 class PlanOut(BaseModel):
     key: str
-    ai_monthly_budget_usd: float
     available: bool
+    # [module:ai]
+    ai_monthly_budget_usd: float
+    # [/module:ai]
 
 
 class BillingOut(BaseModel):
@@ -109,8 +120,10 @@ def billing(membership: Member, session: SessionDep) -> BillingOut:
         plans=[
             PlanOut(
                 key=p.key,
-                ai_monthly_budget_usd=p.ai_monthly_budget_usd,
                 available=not p.paid or (enabled and p.price_id is not None),
+                # [module:ai]
+                ai_monthly_budget_usd=p.ai_monthly_budget_usd,
+                # [/module:ai]
             )
             for p in plans(settings).values()
         ],

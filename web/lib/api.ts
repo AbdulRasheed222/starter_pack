@@ -41,8 +41,11 @@ export type InvitePreview = {
   expired: boolean;
   accepted: boolean;
 };
+// [module:notes]
 export type Note = { id: string; title: string; body: string; created_at: string; updated_at: string };
+// [/module:notes]
 
+// [module:ai]
 export type DocumentInfo = {
   id: string;
   title: string;
@@ -67,7 +70,15 @@ export type Usage = {
   days: UsageDay[];
 };
 
-export type PlanInfo = { key: string; ai_monthly_budget_usd: number; available: boolean };
+// [/module:ai]
+// [module:billing]
+export type PlanInfo = {
+  key: string;
+  available: boolean;
+  // [module:ai]
+  ai_monthly_budget_usd: number;
+  // [/module:ai]
+};
 export type Billing = {
   enabled: boolean;
   plan: string;
@@ -75,19 +86,25 @@ export type Billing = {
   can_manage: boolean;
   plans: PlanInfo[];
 };
+// [/module:billing]
 export type AdminWorkspace = {
   id: string;
   name: string;
   created_at: string;
   members: number;
-  documents: number;
+  // [module:billing]
   plan: string;
   subscription_status: string | null;
+  // [/module:billing]
+  // [module:ai]
+  documents: number;
   spent_usd: number;
   budget_usd: number;
   budget_override_usd: number | null;
+  // [/module:ai]
 };
 
+// [module:ai]
 /** A passage the answer may cite, numbered from 1. */
 export type Source = {
   n: number;
@@ -137,6 +154,8 @@ async function readEvents(response: Response, onEvent: (event: AskEvent) => void
     }
   }
 }
+
+// [/module:ai]
 
 export class ApiError extends Error {
   constructor(
@@ -206,6 +225,9 @@ export const api = (getToken: GetToken) => {
     acceptInvite: (token: string) =>
       json<WorkspaceSummary>(call(getToken, "/invites/accept", send("POST", { token }))),
 
+    adminWorkspaces: () => json<AdminWorkspace[]>(call(getToken, "/admin/workspaces")),
+    // [module:notes]
+
     notes: (id: string) => json<Note[]>(call(getToken, `${ws(id)}/notes`)),
     createNote: (id: string, title: string, body: string) =>
       json<Note>(call(getToken, `${ws(id)}/notes`, send("POST", { title, body }))),
@@ -214,6 +236,8 @@ export const api = (getToken: GetToken) => {
     deleteNote: async (id: string, noteId: string) => {
       await call(getToken, `${ws(id)}/notes/${noteId}`, send("DELETE"));
     },
+    // [/module:notes]
+    // [module:ai]
 
     documents: (id: string) => json<DocumentInfo[]>(call(getToken, `${ws(id)}/documents`)),
     uploadDocument: (id: string, file: File) => {
@@ -227,20 +251,6 @@ export const api = (getToken: GetToken) => {
       await call(getToken, `${ws(id)}/documents/${documentId}`, send("DELETE"));
     },
     usage: (id: string) => json<Usage>(call(getToken, `${ws(id)}/usage`)),
-    billing: (id: string) => json<Billing>(call(getToken, `${ws(id)}/billing`)),
-    checkout: (id: string, plan: string) =>
-      json<{ url: string }>(call(getToken, `${ws(id)}/billing/checkout`, send("POST", { plan }))),
-    billingPortal: (id: string) =>
-      json<{ url: string }>(call(getToken, `${ws(id)}/billing/portal`, send("POST"))),
-    adminWorkspaces: () => json<AdminWorkspace[]>(call(getToken, "/admin/workspaces")),
-    setBudget: (workspaceId: string, budget: number | null) =>
-      json<AdminWorkspace>(
-        call(
-          getToken,
-          `/admin/workspaces/${workspaceId}`,
-          send("PATCH", { ai_monthly_budget_usd: budget }),
-        ),
-      ),
     /** Streams an answer. Resolves when the stream ends; errors before it starts throw. */
     ask: async (
       id: string,
@@ -255,6 +265,23 @@ export const api = (getToken: GetToken) => {
       });
       await readEvents(response, onEvent);
     },
+    setBudget: (workspaceId: string, budget: number | null) =>
+      json<AdminWorkspace>(
+        call(
+          getToken,
+          `/admin/workspaces/${workspaceId}`,
+          send("PATCH", { ai_monthly_budget_usd: budget }),
+        ),
+      ),
+    // [/module:ai]
+    // [module:billing]
+
+    billing: (id: string) => json<Billing>(call(getToken, `${ws(id)}/billing`)),
+    checkout: (id: string, plan: string) =>
+      json<{ url: string }>(call(getToken, `${ws(id)}/billing/checkout`, send("POST", { plan }))),
+    billingPortal: (id: string) =>
+      json<{ url: string }>(call(getToken, `${ws(id)}/billing/portal`, send("POST"))),
+    // [/module:billing]
   };
 };
 

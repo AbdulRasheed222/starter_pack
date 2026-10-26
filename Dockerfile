@@ -14,9 +14,11 @@ COPY backend/ ./
 RUN uv sync --frozen --no-dev
 # Everything is installed now. Without this, each `uv run` syncs again and adds the dev tools.
 ENV UV_NO_SYNC=1
+# [module:ai]
 # The embedding model (about 1 GB) is downloaded here on first use. Mount a volume on it so
 # restarts don't download it again.
 ENV EMBEDDING_CACHE_DIR=/app/models
+# [/module:ai]
 
 EXPOSE 8000
 # Migrations run on every start.

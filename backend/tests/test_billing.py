@@ -134,14 +134,18 @@ def test_webhook_moves_a_workspace_between_plans(client, fake_stripe, session):
     client.post(
         f"/workspaces/{workspace_id}/billing/checkout", json={"plan": "pro"}, headers=as_user()
     )
+    # [module:ai]
     usage = f"/workspaces/{workspace_id}/usage"
     assert client.get(usage, headers=as_user()).json()["budget_usd"] == 5
+    # [/module:ai]
 
     fake_stripe.subscriptions["sub_1"] = subscription("active")
     assert send_event(client, subscription_event("evt_1")).status_code == 200
     billing = client.get(f"/workspaces/{workspace_id}/billing", headers=as_user()).json()
     assert (billing["plan"], billing["status"]) == ("pro", "active")
+    # [module:ai]
     assert client.get(usage, headers=as_user()).json()["budget_usd"] == 50
+    # [/module:ai]
 
     # An active subscription blocks deleting the workspace, so Stripe never bills a ghost.
     assert client.delete(f"/workspaces/{workspace_id}", headers=as_user()).status_code == 409

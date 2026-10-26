@@ -5,7 +5,10 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
+# [module:ai]
 from pgvector.sqlalchemy import Vector
+
+# [/module:ai]
 from sqlalchemy import (
     JSON,
     DateTime,
@@ -62,14 +65,18 @@ class Workspace(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100))
-    # Monthly AI spending cap in USD. None uses AI_MONTHLY_BUDGET_USD. Set by you (or by
-    # billing), never by the customer.
+    # [module:ai]
+    # Monthly AI spending cap in USD. None uses the plan's. Set by an operator, never by the
+    # customer.
     ai_monthly_budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # [/module:ai]
+    # [module:billing]
     # Billing, kept in step with Stripe by billing.py's webhook. "free" until a subscription.
     plan: Mapped[str] = mapped_column(String(32), default="free", server_default="free")
     stripe_customer_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     subscription_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # [/module:billing]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -109,6 +116,7 @@ class Invite(Base):
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+# [module:notes]
 class Note(Base):
     """An example of a customer's own data. Copy its pattern for your real tables, or delete it."""
 
@@ -129,6 +137,10 @@ class Note(Base):
     )
 
 
+# [/module:notes]
+
+
+# [module:ai]
 # The embedding model's output size. Changing models with a different size needs a migration.
 EMBEDDING_DIM = 768
 
@@ -202,6 +214,10 @@ class UsageEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
+# [/module:ai]
+
+
+# [module:billing]
 class StripeEvent(Base):
     """Stripe webhook events already handled, so a retried delivery is not applied twice."""
 
@@ -210,6 +226,9 @@ class StripeEvent(Base):
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     type: Mapped[str] = mapped_column(String(100))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# [/module:billing]
 
 
 class Job(Base):

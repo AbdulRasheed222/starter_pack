@@ -24,9 +24,13 @@ UNSCOPED = {
     ("POST", "/workspaces"): "creates a new workspace owned by the caller",
     ("POST", "/invites/preview"): "needs the secret invite token",
     ("POST", "/invites/accept"): "needs the secret invite token, and the invited email",
-    ("POST", "/billing/webhook"): "called by Stripe; refused without Stripe's signature",
     ("GET", "/admin/workspaces"): "operators only (ADMIN_USER_IDS); 404 for everyone else",
+    # [module:ai]
     ("PATCH", "/admin/workspaces/{target_id}"): "operators only (ADMIN_USER_IDS); 404 for others",
+    # [/module:ai]
+    # [module:billing]
+    ("POST", "/billing/webhook"): "called by Stripe; refused without Stripe's signature",
+    # [/module:billing]
 }
 
 PARAM = re.compile(r"{(\w+)}")
@@ -47,27 +51,26 @@ def seed(client, user: str, name: str) -> dict[str, str]:
     """A workspace with one of everything, and the ids to fill its URLs with."""
     workspace_id = create_workspace(client, user, name)
     headers = as_user(user)
-    note = client.post(
+    ids = {"workspace_id": workspace_id}
+    # [module:notes]
+    ids["note_id"] = client.post(
         f"/workspaces/{workspace_id}/notes", json={"title": f"{name} secret"}, headers=headers
-    ).json()
-    invite = client.post(
+    ).json()["id"]
+    # [/module:notes]
+    ids["invite_id"] = client.post(
         f"/workspaces/{workspace_id}/invites",
         json={"email": f"guest-{name.lower()}@example.com"},
         headers=headers,
-    ).json()
-    document = client.post(
+    ).json()["id"]
+    # [module:ai]
+    ids["document_id"] = client.post(
         f"/workspaces/{workspace_id}/documents",
         files={"file": (f"{name}.md", f"# {name}\n\n{name} keeps its secrets.".encode())},
         headers=headers,
-    ).json()
-    me = client.get("/me", headers=headers).json()
-    return {
-        "workspace_id": workspace_id,
-        "note_id": note["id"],
-        "invite_id": invite["id"],
-        "document_id": document["id"],
-        "user_id": me["id"],
-    }
+    ).json()["id"]
+    # [/module:ai]
+    ids["user_id"] = client.get("/me", headers=headers).json()["id"]
+    return ids
 
 
 def ids_for(path: str, ids: dict[str, str]) -> str:
@@ -132,7 +135,7 @@ def call(client, method: str, template: str, path: str, user: str):
 
 def test_there_are_scoped_routes_to_check():
     # Guards against the checks below passing because they found nothing.
-    assert len(SCOPED) >= 10
+    assert len(SCOPED) >= 8
 
 
 def test_every_route_is_scoped_or_listed():
@@ -173,9 +176,13 @@ def test_alphas_data_is_untouched(client, two_workspaces):
     headers = as_user("user_alice")
     workspace = client.get(f"/workspaces/{alpha['workspace_id']}", headers=headers).json()
     assert (workspace["name"], workspace["members"]) == ("Alpha", 1)
+    # [module:notes]
     notes = client.get(f"/workspaces/{alpha['workspace_id']}/notes", headers=headers).json()
     assert [n["title"] for n in notes] == ["Alpha secret"]
+    # [/module:notes]
+    # [module:ai]
     documents = client.get(f"/workspaces/{alpha['workspace_id']}/documents", headers=headers).json()
     assert [d["filename"] for d in documents] == ["Alpha.md"]
     usage = client.get(f"/workspaces/{alpha['workspace_id']}/usage", headers=headers).json()
     assert usage["calls"] == 0
+    # [/module:ai]

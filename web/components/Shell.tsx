@@ -57,12 +57,20 @@ export default function Shell({
 
   const base = `/app/${workspace.id}`;
   const links = [
+    // [module:ai]
     { href: `${base}/ask`, label: t("nav.ask") },
     { href: `${base}/documents`, label: t("nav.documents") },
+    // [/module:ai]
+    // [module:notes]
     { href: base, label: t("nav.notes") },
+    // [/module:notes]
     { href: `${base}/members`, label: t("nav.members") },
+    // [module:ai]
     { href: `${base}/usage`, label: t("nav.usage") },
+    // [/module:ai]
+    // [module:billing]
     { href: `${base}/billing`, label: t("nav.billing") },
+    // [/module:billing]
     { href: `${base}/settings`, label: t("nav.settings") },
   ];
 

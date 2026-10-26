@@ -5,13 +5,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.admin import router as admin_router
+
+# [module:ai]
 from app.ai.ask import router as ask_router
 from app.ai.documents import router as documents_router
 from app.ai.usage import router as usage_router
+
+# [/module:ai]
+# [module:billing]
 from app.billing import router as billing_router
+
+# [/module:billing]
 from app.config import get_settings
 from app.jobs import work_forever
+
+# [module:notes]
 from app.notes import router as notes_router
+
+# [/module:notes]
 from app.workspaces import router as workspaces_router
 
 
@@ -33,12 +44,18 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(workspaces_router)
+app.include_router(admin_router)
+# [module:notes]
 app.include_router(notes_router)
+# [/module:notes]
+# [module:ai]
 app.include_router(documents_router)
 app.include_router(ask_router)
 app.include_router(usage_router)
+# [/module:ai]
+# [module:billing]
 app.include_router(billing_router)
-app.include_router(admin_router)
+# [/module:billing]
 
 
 @app.get("/healthz")
