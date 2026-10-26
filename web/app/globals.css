@@ -547,6 +547,41 @@ td {
   padding-inline: 0 0.75rem;
 }
 
+.badge.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Admin */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table.admin {
+  inline-size: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+table.admin th,
+table.admin td {
+  text-align: start;
+  vertical-align: top;
+  padding: 0.6rem 0.75rem;
+  border-block-end: 1px solid var(--line);
+}
+
+table.admin th {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.narrow-input {
+  inline-size: 7rem;
+}
+
 /* Phones: the side menu becomes a bar across the top. */
 @media (max-width: 720px) {
   .shell {

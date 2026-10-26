@@ -23,6 +23,7 @@ export type Me = {
   email: string | null;
   workspaces: WorkspaceSummary[];
   max_workspaces: number;
+  is_operator: boolean;
 };
 export type Member = { user_id: string; email: string | null; role: Role; joined_at: string };
 export type Invite = {
@@ -47,6 +48,8 @@ export type DocumentInfo = {
   title: string;
   filename: string;
   kind: string;
+  status: "processing" | "ready" | "failed";
+  error: string | null;
   pages: number;
   size_bytes: number;
   chunks: number;
@@ -62,6 +65,27 @@ export type Usage = {
   output_tokens: number;
   by_model: Record<string, number>;
   days: UsageDay[];
+};
+
+export type PlanInfo = { key: string; ai_monthly_budget_usd: number; available: boolean };
+export type Billing = {
+  enabled: boolean;
+  plan: string;
+  status: string | null;
+  can_manage: boolean;
+  plans: PlanInfo[];
+};
+export type AdminWorkspace = {
+  id: string;
+  name: string;
+  created_at: string;
+  members: number;
+  documents: number;
+  plan: string;
+  subscription_status: string | null;
+  spent_usd: number;
+  budget_usd: number;
+  budget_override_usd: number | null;
 };
 
 /** A passage the answer may cite, numbered from 1. */
@@ -203,6 +227,20 @@ export const api = (getToken: GetToken) => {
       await call(getToken, `${ws(id)}/documents/${documentId}`, send("DELETE"));
     },
     usage: (id: string) => json<Usage>(call(getToken, `${ws(id)}/usage`)),
+    billing: (id: string) => json<Billing>(call(getToken, `${ws(id)}/billing`)),
+    checkout: (id: string, plan: string) =>
+      json<{ url: string }>(call(getToken, `${ws(id)}/billing/checkout`, send("POST", { plan }))),
+    billingPortal: (id: string) =>
+      json<{ url: string }>(call(getToken, `${ws(id)}/billing/portal`, send("POST"))),
+    adminWorkspaces: () => json<AdminWorkspace[]>(call(getToken, "/admin/workspaces")),
+    setBudget: (workspaceId: string, budget: number | null) =>
+      json<AdminWorkspace>(
+        call(
+          getToken,
+          `/admin/workspaces/${workspaceId}`,
+          send("PATCH", { ai_monthly_budget_usd: budget }),
+        ),
+      ),
     /** Streams an answer. Resolves when the stream ends; errors before it starts throw. */
     ask: async (
       id: string,

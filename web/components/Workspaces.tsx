@@ -78,6 +78,11 @@ export default function Workspaces() {
         )}
         {createError && <p className="error">{createError}</p>}
         {me && <p className="muted small">{t("workspaces.limit", { max: me.max_workspaces })}</p>}
+        {me?.is_operator && (
+          <p>
+            <Link href="/admin">{t("admin.title")}</Link>
+          </p>
+        )}
       </main>
     </div>
   );

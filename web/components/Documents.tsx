@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useI18n } from "@/components/I18n";
 import { useWorkspace } from "@/components/Shell";
@@ -18,6 +18,14 @@ export default function Documents() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const canManage = atLeast(workspace.role, "admin");
+  const processing = data?.some((d) => d.status === "processing") ?? false;
+
+  // Uploads are processed in the background: check back until they are done.
+  useEffect(() => {
+    if (!processing) return;
+    const timer = setInterval(reload, 3000);
+    return () => clearInterval(timer);
+  }, [processing, reload]);
 
   async function upload(files: FileList | null) {
     setProblem(null);
@@ -72,7 +80,15 @@ export default function Documents() {
           {data.map((d) => (
             <li key={d.id}>
               <span className="grow">
-                <strong>{d.title}</strong>
+                <strong>
+                  {d.title}{" "}
+                  {d.status !== "ready" && (
+                    <span className={d.status === "failed" ? "badge danger" : "badge"}>
+                      {t(`documents.status.${d.status}`)}
+                    </span>
+                  )}
+                </strong>
+                {d.error && <span className="error small">{d.error}</span>}
                 <span className="muted small">
                   {t("documents.meta", {
                     file: d.filename,

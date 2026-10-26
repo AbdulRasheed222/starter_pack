@@ -5,5 +5,5 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 export default clerkMiddleware({ signInUrl: "/sign-in", signUpUrl: "/sign-up" });
 
 export const config = {
-  matcher: ["/app/:path*", "/invite/:path*", "/sign-in/:path*", "/sign-up/:path*"],
+  matcher: ["/app/:path*", "/admin/:path*", "/invite/:path*", "/sign-in/:path*", "/sign-up/:path*"],
 };

@@ -154,6 +154,8 @@ def test_admin_is_invisible_to_everyone_else(client):
 def test_operators_see_workspaces_and_set_budgets(client):
     workspace_id = create_workspace(client, name="Acme")
     operator = as_user("user_operator")
+    assert client.get("/me", headers=operator).json()["is_operator"] is True
+    assert client.get("/me", headers=as_user()).json()["is_operator"] is False
     rows = client.get("/admin/workspaces", headers=operator).json()
     assert [(r["name"], r["members"], r["plan"], r["budget_usd"]) for r in rows] == [
         ("Acme", 1, "free", 5)

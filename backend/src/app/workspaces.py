@@ -64,6 +64,8 @@ class Me(BaseModel):
     email: str | None
     workspaces: list[WorkspaceSummary]
     max_workspaces: int
+    # Listed in ADMIN_USER_IDS, so the web app shows the admin link.
+    is_operator: bool
 
 
 def _detail(session: Session, workspace: Workspace, role: Role) -> WorkspaceDetail:
@@ -92,6 +94,7 @@ def me(user: CurrentUser, session: SessionDep) -> Me:
         email=user.email,
         workspaces=[WorkspaceSummary(id=w.id, name=w.name, role=role) for w, role in rows],
         max_workspaces=get_settings().max_workspaces_per_user,
+        is_operator=user.clerk_user_id in get_settings().admin_user_id_set,
     )
 
 

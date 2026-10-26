@@ -62,6 +62,7 @@ export default function Shell({
     { href: base, label: t("nav.notes") },
     { href: `${base}/members`, label: t("nav.members") },
     { href: `${base}/usage`, label: t("nav.usage") },
+    { href: `${base}/billing`, label: t("nav.billing") },
     { href: `${base}/settings`, label: t("nav.settings") },
   ];
 
