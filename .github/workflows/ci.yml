@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/app_test
+      DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Create the test database
+        run: |
+          PGPASSWORD=app psql -h localhost -U app -d app -c "CREATE DATABASE app_test"
+          PGPASSWORD=app psql -h localhost -U app -d app_test -c "CREATE EXTENSION vector"
+      - name: Tests, including tenant isolation
+        run: uv run pytest -q
+      - name: Migrations apply, match the models and roll back
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+  # [module:ai]
+  retrieval:
+    # Search quality with the real embedding model. Fails if recall drops below the gate, so a
+    # change to parsing, chunking or the model can't quietly make answers worse.
+    runs-on: ubuntu-latest
+    env:
+      EMBEDDING_CACHE_DIR: ${{ github.workspace }}/.models
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - uses: actions/cache@v4
+        with:
+          path: .models
+          key: embedding-paraphrase-multilingual-mpnet-base-v2
+      - name: Retrieval eval
+        run: uv run python scripts/eval_retrieval.py --k 3 --min-recall 0.9
+
+  # [/module:ai]
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Every language has every message
+        run: npm run check:messages
+      - run: npm run typecheck
+      - run: npm run build
+
+  image:
+    # Builds the API image, boots it against Postgres and checks it answers.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -t starter-api .
+      - name: Boot and smoke test
+        run: |
+          docker run -d --name api --network host \
+            -e DATABASE_URL=postgresql+psycopg://app:app@localhost:5432/app \
+            starter-api
+          for i in $(seq 1 30); do
+            curl -sf localhost:8000/healthz && break
+            sleep 2
+          done
+          docker logs api
+          curl -sf localhost:8000/healthz | grep -q '"ok"'
+          # Signed-out calls are refused.
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/me)" = 401
+
+  # [module:setup]
+  setup:
+    # Runs setup_project.py with each module removed, then the full checks on the result, so
+    # every combination it can produce is known to work.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        without:
+          - ""
+          - "--without ai"
+          - "--without billing"
+          - "--without notes"
+          - "--without ai --without billing --without notes"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/app_test
+      DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/app
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Set up the project
+        run: python3 setup_project.py --yes --name Acme ${{ matrix.without }}
+      - name: No module markers are left
+        run: "! grep -rEn --exclude-dir=.venv --exclude-dir=node_modules '\\[/?module:|\\[only:' backend web/app web/components web/lib .github docs README.md CLAUDE.md Dockerfile"
+      - name: Backend
+        working-directory: backend
+        run: |
+          PGPASSWORD=app psql -h localhost -U app -d app -c "CREATE DATABASE app_test"
+          PGPASSWORD=app psql -h localhost -U app -d app_test -c "CREATE EXTENSION vector"
+          uv sync --frozen
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run pytest -q
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - name: Web
+        working-directory: web
+        run: |
+          npm ci
+          npm run check:messages
+          npm run typecheck
+          npm run build
+  # [/module:setup]
