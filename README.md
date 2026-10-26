@@ -24,7 +24,7 @@ It is built from code that runs in [Answervera](https://www.answervera.com), wit
 
 ## What is tested and what isn't
 
-- **Tested in CI:** every API rule above (64 tests on Postgres 16 with pgvector, including that search never returns another workspace's passages), the Claude and OpenAI-compatible request and stream formats against recorded responses, migrations up and down, search recall with the real embedding model, the web build, that every language has every message, and that the Docker image boots.
+- **Tested in CI:** every API rule above (65 tests on Postgres 16 with pgvector, including that search never returns another workspace's passages), the Claude and OpenAI-compatible request and stream formats against recorded responses, migrations up and down, search recall with the real embedding model, the web build, that every language has every message, and that the Docker image boots.
 - **Not tested against a live model:** no test calls Claude or OpenAI for real. Try one question with your key before you ship.
 - **Checked by hand:** the landing page in all three languages at desktop and phone width, including right-to-left, and the Ask, Documents and Usage pages with sample data.
 - **Not yet checked in a browser:** the signed-in pages, which need a Clerk development instance. The Turkish and Arabic text is a first draft; have a native speaker review it before production.
